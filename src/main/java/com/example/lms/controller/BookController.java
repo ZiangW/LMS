@@ -3,8 +3,12 @@ package com.example.lms.controller;
 import com.example.lms.model.Book;
 import com.example.lms.service.BookManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -17,25 +21,28 @@ public class BookController {
     @PostMapping(value = "/addBooks")
     @ResponseBody
     public int addBooks(@RequestBody Book book) {
-
-        return bookManager.addBooks(book);
-
+        int res = bookManager.addBooks(book);
+        bookManager.getBooks(book);
+        return res;
     }
 
     @PostMapping(value = "/deleteBooks")
     @ResponseBody
     public List<Integer> deleteBooks(@RequestBody List<Book> list) {
-
-        return bookManager.deleteBooks(list);
-
+        List<Integer> res = new ArrayList<>();
+        for (Book book : list) {
+            res.add(bookManager.deleteBook(book));
+        }
+        return res;
     }
 
     @PostMapping(value = "/updateBooks")
     @ResponseBody
     public int updateBooks(@RequestBody Book book) {
 
-        return bookManager.updateBooks(book);
-
+        int res = bookManager.updateBooks(book);
+        bookManager.getBooks(book);
+        return res;
     }
 
     @PostMapping(value = "/getBooks")

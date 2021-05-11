@@ -11,6 +11,7 @@ import com.example.lms.service.BookManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -102,16 +103,20 @@ public class AdminController {
     @PostMapping(value = "/addBook")
     @ResponseBody
     public int addBook(@RequestBody Book book) {
-
-        return bookManager.addBooks(book);
-
+        int res = bookManager.addBooks(book);
+        bookManager.getBooks(book);
+        return res;
     }
 
     @PostMapping(value = "/deleteBook")
     @ResponseBody
     public List<Integer> deleteBook(@RequestBody List<Book> list) {
 
-        return bookManager.deleteBooks(list);
+        List<Integer> res = new ArrayList<>();
+        for (Book book : list) {
+            res.add(bookManager.deleteBook(book));
+        }
+        return res;
 
     }
 
@@ -119,7 +124,9 @@ public class AdminController {
     @ResponseBody
     public int updateBook(@RequestBody Book book) {
 
-        return bookManager.updateBooks(book);
+        int res = bookManager.updateBooks(book);
+        bookManager.getBooks(book);
+        return res;
 
     }
 

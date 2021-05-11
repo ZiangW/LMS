@@ -5,6 +5,10 @@ import com.example.lms.model.Book;
 import com.example.lms.model.BorrowedBook;
 import com.example.lms.service.BookManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tk.mybatis.mapper.entity.Example;
@@ -15,6 +19,7 @@ import java.util.List;
 
 @Service
 @Transactional
+@CacheConfig(cacheNames = "books")
 public class BookManagerImpl implements BookManager {
 
     @Autowired
@@ -35,13 +40,10 @@ public class BookManagerImpl implements BookManager {
     }
 
     @Override
-    public List<Integer> deleteBooks(List<Book> list) {
-        List<Integer> res = new ArrayList<>();
-        for (Book book : list) {
-            book.setBookStatus(0);
-            res.add(bookDao.updateByPrimaryKeySelective(book));
-        }
-        return res;
+    @CacheEvict(key = "'bookId::'+#book.bookId")
+    public int deleteBook(Book book) {
+        book.setBookStatus(0);
+        return bookDao.updateByPrimaryKeySelective(book);
     }
 
     @Override
@@ -55,8 +57,10 @@ public class BookManagerImpl implements BookManager {
     }
 
     @Override
+    @CachePut(key = "'bookId::'+#book.bookId")
     public int updateBooks(Book book) {
-        return bookDao.updateByExampleSelective(book, Example.builder(Book.class).where(updateWithConditions(book)).build());
+        return bookDao.updateByExampleSelective(book, Example.builder(Book.class)
+                .where(updateWithConditions(book)).build());
     }
 
     private WeekendSqls<Book> updateWithConditions(Book book) {
@@ -73,6 +77,7 @@ public class BookManagerImpl implements BookManager {
     }
 
     @Override
+    @Cacheable(key = "'bookId::'+#book.bookId", sync = true)
     public List<Book> getBooks(Book book) {
         return bookDao.selectByExample(this.selectWithConditions(book, true));
     }
@@ -99,6 +104,7 @@ public class BookManagerImpl implements BookManager {
     }
 
     @Override
+    @Cacheable(sync = true)
     public List<Book> getAllBooks() {
         return bookDao.selectAll();
     }
