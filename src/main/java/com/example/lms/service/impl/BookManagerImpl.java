@@ -2,7 +2,6 @@ package com.example.lms.service.impl;
 
 import com.example.lms.dao.BookDao;
 import com.example.lms.model.Book;
-import com.example.lms.model.BorrowedBook;
 import com.example.lms.service.BookManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
@@ -14,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import tk.mybatis.mapper.entity.Example;
 import tk.mybatis.mapper.weekend.WeekendSqls;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
