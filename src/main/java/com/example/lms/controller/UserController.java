@@ -71,7 +71,7 @@ public class UserController {
 
     @PostMapping(value = "/register")
     @ResponseBody
-    public int register(@RequestBody User user) {
+    public User register(@RequestBody User user) {
 
         return userService.register(user);
 
@@ -79,7 +79,7 @@ public class UserController {
 
     @PostMapping(value = "/updateInfo")
     @ResponseBody
-    public int updateInfo(@RequestBody User user) {
+    public User updateInfo(@RequestBody User user) {
 
         return userService.updateInfo(user);
 

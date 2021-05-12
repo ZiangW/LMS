@@ -27,7 +27,7 @@ public class UserBookServiceImpl implements UserBookService {
 
     @Override
     public int borrowBook(BorrowedBook borrowedBook) {
-        RLock borrowReturnLock = redissonClient.getFairLock("borrowLock::" + borrowedBook.getLendBookId());
+        RLock borrowReturnLock = redissonClient.getFairLock("bookCountLock::" + borrowedBook.getLendBookId());
         int res = 0;
         try {
             borrowReturnLock.lock(3, TimeUnit.SECONDS);
@@ -48,17 +48,15 @@ public class UserBookServiceImpl implements UserBookService {
 
     @Override
     public int returnBook(ReturnedBook returnedBook) {
-        RLock borrowReturnLock = redissonClient.getFairLock("returnLock::" + returnedBook.getReturnBookId());
+        RLock borrowReturnLock = redissonClient.getFairLock("bookCountLock::" + returnedBook.getReturnBookId());
         int res = 0;
         try {
             borrowReturnLock.lock(3, TimeUnit.SECONDS);
             // 更新余量
             res = bookManager.addBookCount(1, returnedBook.getReturnBookId());
-            // 增加借书记录
-
         } catch (Exception e) {
             log.error(e.getMessage());
-
+            return 2;
         } finally {
             borrowReturnLock.unlock();
         }

@@ -6,8 +6,8 @@ public interface UserService {
 
     User login(User user);
 
-    int register(User user);
+    User register(User user);
 
-    int updateInfo(User user);
+    User updateInfo(User user);
 
 }

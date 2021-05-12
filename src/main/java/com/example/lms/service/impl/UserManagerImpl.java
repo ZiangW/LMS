@@ -4,6 +4,7 @@ import com.example.lms.dao.UserDao;
 import com.example.lms.model.User;
 import com.example.lms.service.UserManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tk.mybatis.mapper.entity.Example;
@@ -21,7 +22,7 @@ public class UserManagerImpl implements UserManager {
 
     @Override
     public int addUser(User user) {
-        List<User> list = userDao.selectByExample(this.selectWithConditions(user, false));
+        List<User> list = userDao.selectByExample(this.checkWithConditions(user, false));
         if (list.size() > 0) {
             if (list.get(0).getUserStatus() == 0) {
                 user.setUserId(list.get(0).getUserId());
@@ -67,10 +68,10 @@ public class UserManagerImpl implements UserManager {
 
     @Override
     public List<User> checkUserInfo(User user) {
-        return userDao.selectByExample(this.checkWithConditions(user));
+        return userDao.selectByExample(this.checkWithConditions(user, false));
     }
 
-    private Example checkWithConditions(User user) {
+    private Example checkWithConditions(User user, boolean selectOrUpdate) {
         Example example = new Example(User.class);
         Example.Criteria criteria = example.createCriteria();
         if (user.getUserId() != null && user.getUserId() > 0) {
@@ -78,6 +79,9 @@ public class UserManagerImpl implements UserManager {
         }
         if (user.getUserName() != null && user.getUserName().length() > 0) {
             criteria.andEqualTo("userName", user.getUserName());
+        }
+        if (selectOrUpdate) {
+            criteria.andEqualTo("userStatus", 1);
         }
         return example;
     }
