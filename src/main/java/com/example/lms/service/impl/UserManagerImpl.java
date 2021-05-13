@@ -1,9 +1,12 @@
 package com.example.lms.service.impl;
 
 import com.example.lms.dao.UserDao;
+import com.example.lms.model.BookCategory;
 import com.example.lms.model.User;
+import com.example.lms.service.RedisService;
 import com.example.lms.service.UserManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,23 +18,36 @@ import java.util.List;
 
 @Service
 @Transactional
+@CacheConfig(cacheNames = "users")
 public class UserManagerImpl implements UserManager {
 
     @Autowired
     private UserDao userDao;
+    @Autowired
+    private RedisService<User> redisService;
 
     @Override
-    public int addUser(User user) {
+    public User addUser(User user) {
         List<User> list = userDao.selectByExample(this.checkWithConditions(user, false));
+        User res = new User();
         if (list.size() > 0) {
             if (list.get(0).getUserStatus() == 0) {
                 user.setUserId(list.get(0).getUserId());
-                return userDao.updateByPrimaryKey(user);
+                if (userDao.updateByPrimaryKey(user) == 1) {
+                    res = user;
+                }
             }
-            // 已存在
-            return 2;
+        } else if (userDao.insertSelective(user) == 1) {
+            list = userDao.selectByExample(this.checkWithConditions(user, false));
+            if (list.size() == 1) {
+                res = list.get(0);
+            }
         }
-        return userDao.insertSelective(user);
+        // CachePut
+        if (res.getUserId() != null) {
+            redisService.addObject("user::set::*", "userId::" + res.getUserId(), res);
+        }
+        return res;
     }
 
     @Override
@@ -39,21 +55,45 @@ public class UserManagerImpl implements UserManager {
         List<Integer> res = new ArrayList<>();
         for (User user : list) {
             user.setUserStatus(0);
-            res.add(userDao.updateByPrimaryKeySelective(user));
+            int flag = userDao.updateByPrimaryKeySelective(user);
+            res.add(flag);
+            // CacheEvict
+            if (flag == 1) {
+                redisService.deleteObject("userId::" + user.getUserId());
+            }
         }
         return res;
     }
 
     @Override
-    public int updateUser(User user) {
-        return userDao.updateByExampleSelective(user, Example.builder(User.class).where(updateWithConditions(user)).build());
+    public User updateUser(User user) {
+        User res = new User();
+        if (userDao.updateByExampleSelective(user, Example.builder(User.class).where(updateWithConditions(user)).build()) == 1) {
+            List<User> list = userDao.selectByExample(this.checkWithConditions(user, false));
+            if (list.size() == 1) {
+                res = list.get(0);
+                // CachePut
+                redisService.updateObject("userId::" + res.getUserId(), res);
+            }
+        }
+        return res;
     }
 
-    private WeekendSqls<User> updateWithConditions(User user) {
-        WeekendSqls<User> sqls = WeekendSqls.custom();
-        sqls.andEqualTo(User::getUserId, user.getUserId());
-        sqls.andEqualTo(User::getUserStatus, 1);
-        return sqls;
+    @Override
+    public List<User> getUsers(User user) {
+        // Cacheable
+        String key = "user::set::" + "userId::" + user.getUserId()
+                + "userName::" + user.getUserName();
+        List<User> list = redisService.selectObjects(key);
+        if (list.size() < 1) {
+            list = userDao.selectByExample(this.selectWithConditions(user, true));
+            List<String> keys = new ArrayList<>();
+            for (User u : list) {
+                keys.add("userId::" + u.getUserId());
+            }
+            redisService.addObjects(key, keys, list);
+        }
+        return list;
     }
 
     @Override
@@ -61,14 +101,11 @@ public class UserManagerImpl implements UserManager {
         return userDao.selectAll();
     }
 
-    @Override
-    public List<User> getUsers(User user) {
-        return userDao.selectByExample(this.selectWithConditions(user, true));
-    }
-
-    @Override
-    public List<User> checkUserInfo(User user) {
-        return userDao.selectByExample(this.checkWithConditions(user, false));
+    private WeekendSqls<User> updateWithConditions(User user) {
+        WeekendSqls<User> sqls = WeekendSqls.custom();
+        sqls.andEqualTo(User::getUserId, user.getUserId());
+        sqls.andEqualTo(User::getUserStatus, 1);
+        return sqls;
     }
 
     private Example checkWithConditions(User user, boolean selectOrUpdate) {

@@ -1,17 +1,20 @@
 package com.example.lms.service;
 
+import com.example.lms.model.Admin;
 import com.example.lms.model.User;
 
 import java.util.List;
 
 public interface AdminService {
 
-    int updateUser(User user);
+    User updateUser(User user);
 
     List<Integer> deleteUser(List<User> list);
 
-    int addUser(User user);
+    User addUser(User user);
 
     List<User> getUsersByConditions(User user);
+
+    Admin login(Admin admin);
 
 }

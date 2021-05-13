@@ -3,24 +3,42 @@ package com.example.lms.service.impl;
 import com.example.lms.dao.BookCategoryDao;
 import com.example.lms.model.BookCategory;
 import com.example.lms.service.BookCategoryManager;
+import com.example.lms.service.RedisService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tk.mybatis.mapper.entity.Example;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
 @Transactional
+@CacheConfig(cacheNames = "categories")
 public class BookCategoryManagerImpl implements BookCategoryManager {
-
     @Autowired
     private BookCategoryDao bookCategoryDao;
+    @Autowired
+    private RedisService<BookCategory> redisService;
 
     @Override
     public List<BookCategory> getBookCategory(BookCategory bookCategory) {
-        return bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, true));
+        String key = "category::set::" + "bookCategoryId::" + bookCategory.getCategoryId()
+                + "bookCategoryName::" + bookCategory.getCategoryName();
+        List<BookCategory> list = redisService.selectObjects(key);
+//        Collections.sort(list, Comparator.comparingInt(BookCategory::getCategoryId));
+        if (list.size() < 1) {
+            list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, true));
+            List<String> keys = new ArrayList<>();
+            for (BookCategory bc : list) {
+                keys.add("bookCategoryId::" + bc.getCategoryId());
+            }
+            redisService.addObjects(key, keys, list);
+        }
+        return list;
     }
 
     @Override
@@ -31,20 +49,40 @@ public class BookCategoryManagerImpl implements BookCategoryManager {
     @Override
     public int addBookCategory(BookCategory bookCategory) {
         List<BookCategory> list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, false));
+        int res;
         if (list.size() > 0) {
-            if (list.get(0).getCategoryStatus() == 0) {
-                bookCategory.setCategoryId(list.get(0).getCategoryId());
-                return bookCategoryDao.updateByPrimaryKey(bookCategory);
+            if (list.get(0).getCategoryStatus() != 0) {
+                // 已存在
+                return 2;
             }
-            // 已存在
-            return 2;
+            bookCategory.setCategoryId(list.get(0).getCategoryId());
+            res = bookCategoryDao.updateByPrimaryKey(bookCategory);
+        } else {
+            res = bookCategoryDao.insertSelective(bookCategory);
         }
-        return bookCategoryDao.insertSelective(bookCategory);
+        list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, true));
+        if (list.size() == 1) {
+            bookCategory = list.get(0);
+        }
+        if (res == 1) {
+
+            redisService.addObject("category::set::*", "bookCategoryId::" + bookCategory.getCategoryId(), bookCategory);
+        }
+        return res;
     }
 
     @Override
     public int updateBookCategory(BookCategory bookCategory) {
-        return bookCategoryDao.updateByPrimaryKeySelective(bookCategory);
+        if (bookCategoryDao.updateByPrimaryKeySelective(bookCategory) == 1) {
+            List<BookCategory> list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, true));
+            if (list.size() == 1) {
+                BookCategory bc = list.get(0);
+                redisService.updateObject("bookCategoryId::" + bc.getCategoryId(), bc);
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
     }
 
     @Override
@@ -52,7 +90,11 @@ public class BookCategoryManagerImpl implements BookCategoryManager {
         List<Integer> res = new ArrayList<>();
         for (BookCategory bookCategory : list) {
             bookCategory.setCategoryStatus(0);
-            res.add(bookCategoryDao.updateByPrimaryKeySelective(bookCategory));
+            int flag = bookCategoryDao.updateByPrimaryKeySelective(bookCategory);
+            res.add(flag);
+            if (flag == 1) {
+                redisService.deleteObject("bookCategoryId::" + bookCategory.getCategoryId());
+            }
         }
         return res;
     }

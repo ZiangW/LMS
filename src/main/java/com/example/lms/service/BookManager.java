@@ -6,13 +6,13 @@ import java.util.List;
 
 public interface BookManager {
 
-    int addBooks(Book book);
+    Book addBooks(Book book);
 
-    // List<Integer> deleteBooks(List<Book> list);
+    List<Integer> deleteBooks(List<Book> list);
 
-    int deleteBook(Book book);
+    // int deleteBook(Book book);
 
-    int updateBooks(Book book);
+    Book updateBooks(Book book);
 
     List<Book> getBooks(Book book);
 

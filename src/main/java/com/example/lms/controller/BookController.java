@@ -20,35 +20,25 @@ public class BookController {
 
     @PostMapping(value = "/addBooks")
     @ResponseBody
-    public int addBooks(@RequestBody Book book) {
-        int res = bookManager.addBooks(book);
-        bookManager.getBooks(book);
-        return res;
+    public Book addBooks(@RequestBody Book book) {
+        return bookManager.addBooks(book);
     }
 
     @PostMapping(value = "/deleteBooks")
     @ResponseBody
     public List<Integer> deleteBooks(@RequestBody List<Book> list) {
-        List<Integer> res = new ArrayList<>();
-        for (Book book : list) {
-            res.add(bookManager.deleteBook(book));
-        }
-        return res;
+        return bookManager.deleteBooks(list);
     }
 
     @PostMapping(value = "/updateBooks")
     @ResponseBody
-    public int updateBooks(@RequestBody Book book) {
-
-        int res = bookManager.updateBooks(book);
-        bookManager.getBooks(book);
-        return res;
+    public Book updateBooks(@RequestBody Book book) {
+        return bookManager.updateBooks(book);
     }
 
     @PostMapping(value = "/getBooks")
     @ResponseBody
     public List<Book> getBooks(@RequestBody Book book) {
-
         return bookManager.getBooks(book);
     }
 

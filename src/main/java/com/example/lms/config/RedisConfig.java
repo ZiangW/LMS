@@ -68,13 +68,22 @@ public class RedisConfig extends CachingConfigurerSupport {
                 .entryTtl(Duration.ofHours(1L))
                 //不缓存空值
                 .disableCachingNullValues()
-                .disableKeyPrefix()
+//                .disableKeyPrefix()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()));
     }
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         return RedisCacheManager.builder(redisConnectionFactory).cacheDefaults(redisCacheConfiguration()).transactionAware().build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(StringRedisTemplate.class)
+    public StringRedisTemplate stringRedisTemplate(
+            RedisConnectionFactory redisConnectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(redisConnectionFactory);
+        return template;
     }
 
 

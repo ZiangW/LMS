@@ -6,11 +6,11 @@ import java.util.List;
 
 public interface AdminManager {
 
-    int addAdmin(Admin admin);
+    Admin addAdmin(Admin admin);
 
     int deleteAdmin(Admin admin);
 
-    int updateAdmin(Admin admin);
+    Admin updateAdmin(Admin admin);
 
     List<Admin> getAllAdmins();
 
