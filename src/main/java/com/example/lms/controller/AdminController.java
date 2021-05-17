@@ -41,7 +41,7 @@ public class AdminController {
 
     @PostMapping(value = "/deleteAdmins")
     @ResponseBody
-    public int deleteUser(@RequestBody Admin admin) {
+    public int deleteAdmins(@RequestBody Admin admin) {
         return adminManager.deleteAdmin(admin);
     }
 
@@ -53,54 +53,54 @@ public class AdminController {
 
     @PostMapping(value = "/getAdmins")
     @ResponseBody
-    public List<Admin> getUser(@RequestBody Admin admin) {
+    public List<Admin> getAdmins(@RequestBody Admin admin) {
         return adminManager.getAdmins(admin);
     }
 
     @GetMapping(value = "/getAllAdmins")
     @ResponseBody
-    public List<Admin> getAllUser() {
+    public List<Admin> getAllAdmins() {
         return adminManager.getAllAdmins();
     }
 
-    @PostMapping(value = "/addUser")
+    @PostMapping(value = "/addUsers")
     @ResponseBody
-    public User addUsers(@RequestBody User user) {
+    public User addUser(@RequestBody User user) {
         return adminService.addUser(user);
     }
 
-    @PostMapping(value = "/updateUser")
+    @PostMapping(value = "/updateUsers")
     @ResponseBody
-    public User updateUsers(@RequestBody User user) {
+    public User updateUser(@RequestBody User user) {
         return adminService.updateUser(user);
     }
 
-    @PostMapping(value = "/deleteUser")
+    @PostMapping(value = "/deleteUsers")
     @ResponseBody
-    public List<Integer> deleteUser(@RequestBody List<User> list) {
+    public List<Integer> deleteUsers(@RequestBody List<User> list) {
         return adminService.deleteUser(list);
     }
 
-    @PostMapping(value = "/getUser")
+    @PostMapping(value = "/getUsers")
     @ResponseBody
-    public List<User> getUser(@RequestBody User user) {
+    public List<User> getUsers(@RequestBody User user) {
         return adminService.getUsersByConditions(user);
     }
 
 
-    @PostMapping(value = "/addBook")
+    @PostMapping(value = "/addBooks")
     @ResponseBody
     public Book addBook(@RequestBody Book book) {
         return bookManager.addBooks(book);
     }
 
-    @PostMapping(value = "/deleteBook")
+    @PostMapping(value = "/deleteBooks")
     @ResponseBody
     public List<Integer> deleteBook(@RequestBody List<Book> list) {
         return bookManager.deleteBooks(list);
     }
 
-    @PostMapping(value = "/updateBook")
+    @PostMapping(value = "/updateBooks")
     @ResponseBody
     public Book updateBook(@RequestBody Book book) {
         return bookManager.updateBooks(book);
@@ -120,7 +120,7 @@ public class AdminController {
 
     @PostMapping(value = "/addBookCategory")
     @ResponseBody
-    public int addBookCategory(@RequestBody BookCategory bookCategory) {
+    public BookCategory addBookCategory(@RequestBody BookCategory bookCategory) {
         return bookCategoryManager.addBookCategory(bookCategory);
     }
 
@@ -132,7 +132,7 @@ public class AdminController {
 
     @PostMapping(value = "/updateBookCategory")
     @ResponseBody
-    public int updateBookCategory(@RequestBody BookCategory bookCategory) {
+    public BookCategory updateBookCategory(@RequestBody BookCategory bookCategory) {
         return bookCategoryManager.updateBookCategory(bookCategory);
     }
 }

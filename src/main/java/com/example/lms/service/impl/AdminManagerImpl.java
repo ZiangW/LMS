@@ -1,9 +1,7 @@
 package com.example.lms.service.impl;
 
 import com.example.lms.dao.AdminDao;
-import com.example.lms.dao.UserDao;
 import com.example.lms.model.Admin;
-import com.example.lms.model.User;
 import com.example.lms.service.AdminManager;
 import com.example.lms.service.RedisService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +25,12 @@ public class AdminManagerImpl implements AdminManager {
 
     @Override
     public Admin addAdmin(Admin admin) {
-        List<Admin> list = adminDao.selectByExample(this.selectWithConditions(admin, false));
         Admin res = new Admin();
+        if (!this.filterAddAdmin(admin)) {
+            return res;
+        }
+        List<Admin> list = adminDao.selectByExample(Example.builder(Admin.class)
+                .where(this.selectWithCoreConditions(admin, false)).build());
         if (list.size() > 0) {
             if (list.get(0).getAdminStatus() == 0) {
                 admin.setAdminId(list.get(0).getAdminId());
@@ -37,7 +39,8 @@ public class AdminManagerImpl implements AdminManager {
                 }
             }
         } else if (adminDao.insertSelective(admin) == 1) {
-            list = adminDao.selectByExample(this.selectWithConditions(admin, false));
+            list = adminDao.selectByExample(Example.builder(Admin.class)
+                    .where(this.selectWithConditions(admin)).build());
             if (list.size() == 1) {
                 res = list.get(0);
             }
@@ -63,8 +66,13 @@ public class AdminManagerImpl implements AdminManager {
     @Override
     public Admin updateAdmin(Admin admin) {
         Admin res = new Admin();
-        if (adminDao.updateByExampleSelective(admin, Example.builder(Admin.class).where(updateWithConditions(admin)).build()) == 1) {
-            List<Admin> list = adminDao.selectByExample(this.selectWithConditions(admin, false));
+        if (this.filterUpdateAdmin(admin)) {
+            return res;
+        }
+        if (adminDao.updateByExampleSelective(admin, Example.builder(Admin.class)
+                .where(this.updateWithConditions(admin)).build()) == 1) {
+            List<Admin> list = adminDao.selectByExample(Example.builder(Admin.class)
+                    .where(this.selectWithConditions(admin)).build());
             if (list.size() == 1) {
                 res = list.get(0);
                 // CachePut
@@ -75,18 +83,14 @@ public class AdminManagerImpl implements AdminManager {
     }
 
     @Override
-    public List<Admin> getAllAdmins() {
-        return adminDao.selectAll();
-    }
-
-    @Override
     public List<Admin> getAdmins(Admin admin) {
         // Cacheable
         String key = "admin::set::" + "adminId::" + admin.getAdminId()
                 + "adminName::" + admin.getAdminName();
         List<Admin> list = redisService.selectObjects(key);
         if (list.size() < 1) {
-            list = adminDao.selectByExample(this.selectWithConditions(admin, true));
+            list = adminDao.selectByExample(Example.builder(Admin.class)
+            .where(this.selectWithConditions(admin)).build());
             List<String> keys = new ArrayList<>();
             for (Admin ad : list) {
                 keys.add("adminId::" + ad.getAdminId());
@@ -96,31 +100,59 @@ public class AdminManagerImpl implements AdminManager {
         return list;
     }
 
-    private WeekendSqls<Admin> updateWithConditions(Admin admin) {
-        WeekendSqls<Admin> sqls = WeekendSqls.custom();
-        sqls.andEqualTo(Admin::getAdminId, admin.getAdminId());
-        sqls.andEqualTo(Admin::getAdminStatus, 1);
-        return sqls;
+    @Override
+    public List<Admin> getAllAdmins() {
+        return adminDao.selectAll();
     }
 
-    private Example selectWithConditions(Admin admin, boolean selectOrUpdate) {
-        Example example = new Example(Admin.class);
-        Example.Criteria criteria = example.createCriteria();
+    private WeekendSqls<Admin> updateWithConditions(Admin admin) {
+        WeekendSqls<Admin> conditions = WeekendSqls.custom();
+        conditions.andEqualTo(Admin::getAdminId, admin.getAdminId());
+        conditions.andEqualTo(Admin::getAdminStatus, 1);
+        return conditions;
+    }
+
+    private WeekendSqls<Admin> selectWithCoreConditions(Admin admin, boolean selectOrUpdate) {
+        WeekendSqls<Admin> conditions = WeekendSqls.custom();
         if (admin.getAdminId() != null && admin.getAdminId() > 0) {
-            criteria.andEqualTo("adminId", admin.getAdminId());
+            conditions.andEqualTo(Admin::getAdminId, admin.getAdminId());
         }
         if (admin.getAdminName() != null && admin.getAdminName().length() > 0) {
-            criteria.andEqualTo("adminName", admin.getAdminName());
-        }
-        if (admin.getAdminPwd() != null && admin.getAdminPwd().length() > 0) {
-            criteria.andEqualTo("adminPwd", admin.getAdminPwd());
-        }
-        if (admin.getAdminEmail() != null && admin.getAdminEmail().length() > 0) {
-            criteria.andEqualTo("adminEmail", admin.getAdminEmail());
+            conditions.andEqualTo(Admin::getAdminName, admin.getAdminName());
         }
         if (selectOrUpdate) {
-            criteria.andEqualTo("adminStatus", 1);
+            conditions.andEqualTo(Admin::getAdminStatus, 1);
         }
-        return example;
+        return conditions;
+    }
+
+    private WeekendSqls<Admin> selectWithConditions(Admin admin) {
+        WeekendSqls<Admin> conditions = this.selectWithCoreConditions(admin, true);
+        if (admin.getAdminPwd() != null && admin.getAdminPwd().length() > 0) {
+            conditions.andEqualTo(Admin::getAdminPwd, admin.getAdminPwd());
+        }
+        if (admin.getAdminEmail() != null && admin.getAdminEmail().length() > 0) {
+            conditions.andEqualTo(Admin::getAdminEmail, admin.getAdminEmail());
+        }
+        return conditions;
+    }
+
+    private boolean filterUpdateAdmin(Admin admin) {
+        if (admin.getAdminId() == null) {
+            return true;
+        }
+        if (admin.getAdminName() != null) {
+            return true;
+        }
+        return admin.getAdminPwd() == null && admin.getAdminEmail() == null
+                && admin.getAdminStatus() == null;
+    }
+
+    private boolean filterAddAdmin(Admin admin) {
+        if (admin.getAdminId() != null) {
+            return false;
+        }
+        return admin.getAdminName() != null && admin.getAdminPwd() != null
+                && admin.getAdminEmail() != null && admin.getAdminStatus() != null;
     }
 }

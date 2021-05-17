@@ -1,12 +1,10 @@
 package com.example.lms.service.impl;
 
 import com.example.lms.dao.UserDao;
-import com.example.lms.model.BookCategory;
 import com.example.lms.model.User;
 import com.example.lms.service.RedisService;
 import com.example.lms.service.UserManager;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +26,13 @@ public class UserManagerImpl implements UserManager {
 
     @Override
     public User addUser(User user) {
-        List<User> list = userDao.selectByExample(this.checkWithConditions(user, false));
         User res = new User();
+        if (!this.filterAddUser(user)) {
+            return res;
+        }
+        List<User> list = userDao.selectByExample(Example.builder(User.class)
+                .where(this.selectWithCoreConditions(user, false)).build());
+
         if (list.size() > 0) {
             if (list.get(0).getUserStatus() == 0) {
                 user.setUserId(list.get(0).getUserId());
@@ -38,7 +41,8 @@ public class UserManagerImpl implements UserManager {
                 }
             }
         } else if (userDao.insertSelective(user) == 1) {
-            list = userDao.selectByExample(this.checkWithConditions(user, false));
+            list = userDao.selectByExample(Example.builder(User.class)
+                    .where(this.selectWithConditions(user)).build());
             if (list.size() == 1) {
                 res = list.get(0);
             }
@@ -68,8 +72,13 @@ public class UserManagerImpl implements UserManager {
     @Override
     public User updateUser(User user) {
         User res = new User();
-        if (userDao.updateByExampleSelective(user, Example.builder(User.class).where(updateWithConditions(user)).build()) == 1) {
-            List<User> list = userDao.selectByExample(this.checkWithConditions(user, false));
+        if (this.filterUpdateUser(user)) {
+            return res;
+        }
+        if (userDao.updateByExampleSelective(user, Example.builder(User.class)
+                .where(this.updateWithConditions(user)).build()) == 1) {
+            List<User> list = userDao.selectByExample(Example.builder(User.class)
+                    .where(this.selectWithConditions(user)).build());
             if (list.size() == 1) {
                 res = list.get(0);
                 // CachePut
@@ -86,7 +95,8 @@ public class UserManagerImpl implements UserManager {
                 + "userName::" + user.getUserName();
         List<User> list = redisService.selectObjects(key);
         if (list.size() < 1) {
-            list = userDao.selectByExample(this.selectWithConditions(user, true));
+            list = userDao.selectByExample(Example.builder(User.class)
+                    .where(this.selectWithConditions(user)).build());
             List<String> keys = new ArrayList<>();
             for (User u : list) {
                 keys.add("userId::" + u.getUserId());
@@ -102,52 +112,62 @@ public class UserManagerImpl implements UserManager {
     }
 
     private WeekendSqls<User> updateWithConditions(User user) {
-        WeekendSqls<User> sqls = WeekendSqls.custom();
-        sqls.andEqualTo(User::getUserId, user.getUserId());
-        sqls.andEqualTo(User::getUserStatus, 1);
-        return sqls;
+        WeekendSqls<User> conditions = WeekendSqls.custom();
+        conditions.andEqualTo(User::getUserId, user.getUserId());
+        conditions.andEqualTo(User::getUserStatus, 1);
+        return conditions;
     }
 
-    private Example checkWithConditions(User user, boolean selectOrUpdate) {
-        Example example = new Example(User.class);
-        Example.Criteria criteria = example.createCriteria();
+    private WeekendSqls<User> selectWithCoreConditions(User user, boolean selectOrUpdate) {
+        WeekendSqls<User> conditions = WeekendSqls.custom();
         if (user.getUserId() != null && user.getUserId() > 0) {
-            criteria.andEqualTo("userId", user.getUserId());
+            conditions.andEqualTo(User::getUserId, user.getUserId());
         }
         if (user.getUserName() != null && user.getUserName().length() > 0) {
-            criteria.andEqualTo("userName", user.getUserName());
+            conditions.andEqualTo(User::getUserName, user.getUserName());
         }
         if (selectOrUpdate) {
-            criteria.andEqualTo("userStatus", 1);
+            conditions.andEqualTo(User::getUserStatus, 1);
         }
-        return example;
+        return conditions;
     }
 
-    private Example selectWithConditions(User user, boolean selectOrUpdate) {
-        Example example = new Example(User.class);
-        Example.Criteria criteria = example.createCriteria();
-        if (user.getUserId() != null && user.getUserId() > 0) {
-            criteria.andEqualTo("userId", user.getUserId());
-        }
-        if (user.getUserName() != null && user.getUserName().length() > 0) {
-            criteria.andEqualTo("userName", user.getUserName());
-        }
+
+    private WeekendSqls<User> selectWithConditions(User user) {
+        WeekendSqls<User> conditions = this.selectWithCoreConditions(user, true);
         if (user.getUserPwd() != null && user.getUserPwd().length() > 0) {
-            criteria.andEqualTo("userPwd", user.getUserPwd());
+            conditions.andEqualTo(User::getUserPwd, user.getUserPwd());
         }
         if (user.getUserEmail() != null && user.getUserEmail().length() > 0) {
-            criteria.andEqualTo("userEmail", user.getUserEmail());
+            conditions.andEqualTo(User::getUserEmail, user.getUserEmail());
         }
         if (user.getUserType() != null && user.getUserType().length() > 0) {
-            criteria.andEqualTo("userType", user.getUserType());
+            conditions.andEqualTo(User::getUserType, user.getUserType());
         }
         if (user.getAdminId() != null && user.getAdminId() > 0) {
-            criteria.andEqualTo("adminId", user.getAdminId());
+            conditions.andEqualTo(User::getAdminId, user.getAdminId());
         }
-        if (selectOrUpdate) {
-            criteria.andEqualTo("userStatus", 1);
-        }
-        return example;
+        return conditions;
     }
 
+    private boolean filterUpdateUser(User user) {
+        if (user.getUserId() == null) {
+            return true;
+        }
+        if (user.getUserName() != null) {
+            return true;
+        }
+        return user.getUserType() == null && user.getUserEmail() == null
+                && user.getUserPwd() == null && user.getUserStatus() == null
+                && user.getAdminId() == null;
+    }
+
+    private boolean filterAddUser(User user) {
+        if (user.getUserId() != null) {
+            return false;
+        }
+        return user.getUserName() != null && user.getUserType() != null
+                && user.getUserEmail() != null && user.getUserPwd() != null
+                && user.getUserStatus() != null && user.getAdminId() != null;
+    }
 }

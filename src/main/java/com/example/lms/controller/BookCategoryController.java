@@ -22,7 +22,7 @@ public class BookCategoryController {
 
     @PostMapping(value = "/addBookCategory")
     @ResponseBody
-    public int addBookCategory(@RequestBody BookCategory bookCategory) {
+    public BookCategory addBookCategory(@RequestBody BookCategory bookCategory) {
         return bookCategoryManager.addBookCategory(bookCategory);
     }
 
@@ -34,7 +34,7 @@ public class BookCategoryController {
 
     @PostMapping(value = "/updateBookCategory")
     @ResponseBody
-    public int updateBookCategory(@RequestBody BookCategory bookCategory) {
+    public BookCategory updateBookCategory(@RequestBody BookCategory bookCategory) {
         return bookCategoryManager.updateBookCategory(bookCategory);
     }
 

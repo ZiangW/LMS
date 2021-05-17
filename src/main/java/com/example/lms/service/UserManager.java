@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface UserManager {
 
-    User addUser(User book);
+    User addUser(User user);
 
     List<Integer> deleteUsers(List<User> list);
 

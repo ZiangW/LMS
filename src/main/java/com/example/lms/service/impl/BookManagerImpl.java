@@ -4,6 +4,7 @@ import com.example.lms.dao.BookDao;
 import com.example.lms.model.Book;
 import com.example.lms.service.BookManager;
 import com.example.lms.service.RedisService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import tk.mybatis.mapper.weekend.WeekendSqls;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional
 @CacheConfig(cacheNames = "books")
@@ -26,8 +28,13 @@ public class BookManagerImpl implements BookManager {
 
     @Override
     public Book addBooks(Book book) {
-        List<Book> list = bookDao.selectByExample(this.selectWithConditions(book, false));
         Book res = new Book();
+        // 过滤非法book
+        if (!this.filterAddBook(book)) {
+            return res;
+        }
+        List<Book> list = bookDao.selectByExample(Example.builder(Book.class)
+                .where(this.selectWithCoreConditions(book, false)).build());
         if (list.size() > 0) {
             if (list.get(0).getBookStatus() == 0) {
                 book.setBookId(list.get(0).getBookId());
@@ -36,7 +43,8 @@ public class BookManagerImpl implements BookManager {
                 }
             }
         } else if (bookDao.insertSelective(book) == 1) {
-            list = bookDao.selectByExample(this.selectWithConditions(book, false));
+            list = bookDao.selectByExample(Example.builder(Book.class)
+                    .where(selectWithConditions(book)).build());
             if (list.size() == 1) {
                 res = list.get(0);
             }
@@ -76,9 +84,14 @@ public class BookManagerImpl implements BookManager {
     @Override
     public Book updateBooks(Book book) {
         Book res = new Book();
+        // 过滤非法book
+        if (this.filterUpdateBook(book)) {
+            return res;
+        }
         if (bookDao.updateByExampleSelective(book, Example.builder(Book.class)
-                .where(updateWithConditions(book)).build()) == 1) {
-            List<Book> list = bookDao.selectByExample(this.selectWithConditions(book, false));
+                .where(this.updateWithConditions(book)).build()) == 1) {
+            List<Book> list = bookDao.selectByExample(Example.builder(Book.class)
+                    .where(this.selectWithConditions(book)).build());
             if (list.size() == 1) {
                 res = list.get(0);
                 // CachePut
@@ -88,19 +101,6 @@ public class BookManagerImpl implements BookManager {
         return res;
     }
 
-    private WeekendSqls<Book> updateWithConditions(Book book) {
-        WeekendSqls<Book> sqls = WeekendSqls.custom();
-        if (book.getBookId() != null && book.getBookId() > 0) {
-            sqls.andEqualTo(Book::getBookId, book.getBookId());
-
-        }
-        if (book.getBookName() != null && book.getBookName().length() > 0) {
-            sqls.andEqualTo(Book::getBookName, book.getBookName());
-        }
-        sqls.andEqualTo(Book::getBookStatus, 1);
-        return sqls;
-    }
-
     @Override
     public List<Book> getBooks(Book book) {
         // Cacheable
@@ -108,7 +108,8 @@ public class BookManagerImpl implements BookManager {
                 + "bookName::" + book.getBookName();
         List<Book> list = redisService.selectObjects(key);
         if (list.size() < 1) {
-            list = bookDao.selectByExample(this.selectWithConditions(book, true));
+            list = bookDao.selectByExample(Example.builder(Book.class)
+                    .where(this.selectWithConditions(book)).build());
             List<String> keys = new ArrayList<>();
             for (Book b : list) {
                 keys.add("bookId::" + b.getBookId());
@@ -118,30 +119,60 @@ public class BookManagerImpl implements BookManager {
         return list;
     }
 
-    private Example selectWithConditions(Book book, boolean selectOrUpdate) {
-        Example example = new Example(Book.class);
-        Example.Criteria criteria = example.createCriteria();
-        if (book.getBookId() != null && book.getBookId() > 0) {
-            criteria.andEqualTo("bookId", book.getBookId());
-        }
-        if (book.getBookName() != null && book.getBookName().length() > 0) {
-            criteria.andEqualTo("bookName", book.getBookName());
-        }
-        if (book.getBookAuthor() != null && book.getBookName().length() > 0) {
-            criteria.andEqualTo("bookAuthor", book.getBookAuthor());
-        }
-        if (book.getBookCategory() != null && book.getBookCategory() > 0) {
-            criteria.andEqualTo("bookCategory", book.getBookCategory());
-        }
-        if (selectOrUpdate) {
-            criteria.andEqualTo("bookStatus", 1);
-        }
-        return example;
-    }
-
     @Override
     public List<Book> getAllBooks() {
         return bookDao.selectAll();
     }
 
+    private boolean filterUpdateBook(Book book) {
+        if (book.getBookId() == null) {
+            return true;
+        }
+        if (book.getBookName() != null) {
+            return true;
+        }
+        return book.getBookCount() == null && book.getBookCategory() == null
+                && book.getBookAuthor() == null && book.getBookStatus() == null;
+    }
+
+    private boolean filterAddBook(Book book) {
+        if (book.getBookId() != null) {
+            return false;
+        }
+        return book.getBookName() != null && book.getBookCount() != null
+                && book.getBookCategory() != null && book.getBookAuthor() != null
+                && book.getBookStatus() != null;
+    }
+
+    private WeekendSqls<Book> updateWithConditions(Book book) {
+        WeekendSqls<Book> conditions = WeekendSqls.custom();
+        conditions.andEqualTo(Book::getBookId, book.getBookId());
+        conditions.andEqualTo(Book::getBookStatus, 1);
+        return conditions;
+    }
+
+    private WeekendSqls<Book> selectWithCoreConditions(Book book, boolean selectOrUpdate) {
+        WeekendSqls<Book> conditions = WeekendSqls.custom();
+        if (book.getBookId() != null && book.getBookId() > 0) {
+            conditions.andEqualTo(Book::getBookId, book.getBookId());
+        }
+        if (book.getBookName() != null && book.getBookName().length() > 0) {
+            conditions.andEqualTo(Book::getBookName, book.getBookName());
+        }
+        if (selectOrUpdate) {
+            conditions.andEqualTo(Book::getBookStatus, 1);
+        }
+        return conditions;
+    }
+
+    private WeekendSqls<Book> selectWithConditions(Book book) {
+        WeekendSqls<Book> conditions = this.selectWithCoreConditions(book, true);
+        if (book.getBookAuthor() != null && book.getBookAuthor().length() > 0) {
+            conditions.andEqualTo(Book::getBookAuthor, book.getBookAuthor());
+        }
+        if (book.getBookCategory() != null && book.getBookCategory() > 0) {
+            conditions.andEqualTo(Book::getBookCategory, book.getBookCategory());
+        }
+        return conditions;
+    }
 }

@@ -9,6 +9,7 @@ import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tk.mybatis.mapper.entity.Example;
+import tk.mybatis.mapper.weekend.WeekendSqls;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,7 +32,8 @@ public class BookCategoryManagerImpl implements BookCategoryManager {
         List<BookCategory> list = redisService.selectObjects(key);
 //        Collections.sort(list, Comparator.comparingInt(BookCategory::getCategoryId));
         if (list.size() < 1) {
-            list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, true));
+            list = bookCategoryDao.selectByExample(Example.builder(BookCategory.class)
+                    .where(this.selectWithConditions(bookCategory, true)).build());
             List<String> keys = new ArrayList<>();
             for (BookCategory bc : list) {
                 keys.add("bookCategoryId::" + bc.getCategoryId());
@@ -47,42 +49,54 @@ public class BookCategoryManagerImpl implements BookCategoryManager {
     }
 
     @Override
-    public int addBookCategory(BookCategory bookCategory) {
-        List<BookCategory> list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, false));
-        int res;
+    public BookCategory addBookCategory(BookCategory bookCategory) {
+        BookCategory res = new BookCategory();
+        // 过滤非法图书分类
+        if (!this.filterAddBookCategory(bookCategory)) {
+            return res;
+        }
+        List<BookCategory> list = bookCategoryDao.selectByExample(Example.builder(BookCategory.class)
+                .where(this.selectWithConditions(bookCategory, false)).build());
         if (list.size() > 0) {
-            if (list.get(0).getCategoryStatus() != 0) {
-                // 已存在
-                return 2;
+            if (list.get(0).getCategoryStatus() == 0) {
+                bookCategory.setCategoryId(list.get(0).getCategoryId());
+                if (bookCategoryDao.updateByPrimaryKey(bookCategory)== 1) {
+                    res = bookCategory;
+                }
             }
-            bookCategory.setCategoryId(list.get(0).getCategoryId());
-            res = bookCategoryDao.updateByPrimaryKey(bookCategory);
-        } else {
-            res = bookCategoryDao.insertSelective(bookCategory);
+        } else if (bookCategoryDao.insertSelective(bookCategory) == 1) {
+            list = bookCategoryDao.selectByExample(Example.builder(BookCategory.class)
+                    .where(this.selectWithConditions(bookCategory, true)).build());
+            if (list.size() == 1) {
+                res = list.get(0);
+            }
         }
-        list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, true));
-        if (list.size() == 1) {
-            bookCategory = list.get(0);
-        }
-        if (res == 1) {
-
-            redisService.addObject("category::set::*", "bookCategoryId::" + bookCategory.getCategoryId(), bookCategory);
+        // CachePut
+        if (res.getCategoryId() != null) {
+            redisService.addObject("category::set::*", "bookCategoryId::" + res.getCategoryId(), res);
         }
         return res;
     }
 
     @Override
-    public int updateBookCategory(BookCategory bookCategory) {
-        if (bookCategoryDao.updateByPrimaryKeySelective(bookCategory) == 1) {
-            List<BookCategory> list = bookCategoryDao.selectByExample(this.selectWithConditions(bookCategory, true));
-            if (list.size() == 1) {
-                BookCategory bc = list.get(0);
-                redisService.updateObject("bookCategoryId::" + bc.getCategoryId(), bc);
-                return 1;
-            }
-            return 2;
+    public BookCategory updateBookCategory(BookCategory bookCategory) {
+        BookCategory res = new BookCategory();
+
+        // 过滤非法图书分类
+        if (this.filterUpdateBookCategory(bookCategory)) {
+            return res;
         }
-        return 0;
+        if (bookCategoryDao.updateByExampleSelective(bookCategory, Example.builder(BookCategory.class)
+                .where(this.updateWithConditions(bookCategory)).build()) == 1) {
+            List<BookCategory> list = bookCategoryDao.selectByExample(Example.builder(BookCategory.class)
+                    .where(this.selectWithConditions(bookCategory, true)).build());
+            if (list.size() == 1) {
+                res = list.get(0);
+                // CachePut
+                redisService.updateObject("bookCategoryId::" + res.getCategoryId(), res);
+            }
+        }
+        return res;
     }
 
     @Override
@@ -92,6 +106,7 @@ public class BookCategoryManagerImpl implements BookCategoryManager {
             bookCategory.setCategoryStatus(0);
             int flag = bookCategoryDao.updateByPrimaryKeySelective(bookCategory);
             res.add(flag);
+            // CacheEvict
             if (flag == 1) {
                 redisService.deleteObject("bookCategoryId::" + bookCategory.getCategoryId());
             }
@@ -99,19 +114,41 @@ public class BookCategoryManagerImpl implements BookCategoryManager {
         return res;
     }
 
-    private Example selectWithConditions(BookCategory bookCategory, boolean selectOrUpdate) {
-        Example example = new Example(BookCategory.class);
-        Example.Criteria criteria = example.createCriteria();
-        if (bookCategory.getCategoryId() != null && bookCategory.getCategoryId() > 0) {
-            criteria.andEqualTo("categoryId", bookCategory.getCategoryId());
+    private boolean filterUpdateBookCategory(BookCategory bookCategory) {
+        if (bookCategory.getCategoryId() == null) {
+            return true;
         }
-        if (bookCategory.getCategoryName() != null && bookCategory.getCategoryName().length() > 0) {
-            criteria.andEqualTo("categoryName", bookCategory.getCategoryName());
+        if (bookCategory.getCategoryName() != null) {
+            return true;
         }
-        if (selectOrUpdate) {
-            criteria.andEqualTo("categoryStatus", 1);
-        }
-        return example;
+        return bookCategory.getCategoryStatus() == null;
     }
 
+    private boolean filterAddBookCategory(BookCategory bookCategory) {
+        if (bookCategory.getCategoryId() != null) {
+            return false;
+        }
+        return bookCategory.getCategoryName() != null && bookCategory.getCategoryStatus() != null;
+    }
+
+    private WeekendSqls<BookCategory> updateWithConditions(BookCategory bookCategory) {
+        WeekendSqls<BookCategory> conditions = WeekendSqls.custom();
+        conditions.andEqualTo(BookCategory::getCategoryId, bookCategory.getCategoryId());
+        conditions.andEqualTo(BookCategory::getCategoryStatus, 1);
+        return conditions;
+    }
+
+    private WeekendSqls<BookCategory> selectWithConditions(BookCategory bookCategory, boolean selectOrUpdate) {
+        WeekendSqls<BookCategory> conditions = WeekendSqls.custom();
+        if (bookCategory.getCategoryId() != null && bookCategory.getCategoryId() > 0) {
+            conditions.andEqualTo(BookCategory::getCategoryId, bookCategory.getCategoryId());
+        }
+        if (bookCategory.getCategoryName() != null && bookCategory.getCategoryName().length() > 0) {
+            conditions.andEqualTo(BookCategory::getCategoryName, bookCategory.getCategoryName());
+        }
+        if (selectOrUpdate) {
+            conditions.andEqualTo(BookCategory::getCategoryStatus, 1);
+        }
+        return conditions;
+    }
 }
