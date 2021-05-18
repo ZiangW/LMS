@@ -20,9 +20,9 @@ public class RedissonConfig {
         Config config = new Config();
         config.useSingleServer().setAddress("redis://" + host + ":" + port)
         .setRetryInterval(1000)
-        .setTimeout(10000)
-        .setConnectTimeout(10000)
-        .setIdleConnectionTimeout(10000)
+        .setTimeout(1000)
+        .setConnectTimeout(1000)
+        .setIdleConnectionTimeout(1000)
         .setRetryAttempts(3);
         return Redisson.create(config);
     }

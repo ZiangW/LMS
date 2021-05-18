@@ -1,20 +1,38 @@
 package com.example.lms.service;
 
 import com.example.lms.model.Admin;
+import com.example.lms.model.Book;
+import com.example.lms.model.BookCategory;
 import com.example.lms.model.User;
 
 import java.util.List;
 
 public interface AdminService {
 
+    Admin login(Admin admin);
+
+    User addUser(User user);
+
     User updateUser(User user);
 
     List<Integer> deleteUser(List<User> list);
 
-    User addUser(User user);
+    List<User> getUsers(User user);
 
-    List<User> getUsersByConditions(User user);
+    Book addBooks(Book book);
 
-    Admin login(Admin admin);
+    List<Integer> deleteBooks(List<Book> list);
+
+    Book updateBooks(Book book);
+
+    List<Book> getBooks(Book book);
+
+    List<BookCategory> getBookCategory(BookCategory bookCategory);
+
+    BookCategory addBookCategory(BookCategory bookCategory);
+
+    BookCategory updateBookCategory(BookCategory bookCategory);
+
+    List<Integer> deleteBookCategory(List<BookCategory> list);
 
 }

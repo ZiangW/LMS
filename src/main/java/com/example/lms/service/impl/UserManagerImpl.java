@@ -4,6 +4,7 @@ import com.example.lms.dao.UserDao;
 import com.example.lms.model.User;
 import com.example.lms.service.RedisService;
 import com.example.lms.service.UserManager;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import tk.mybatis.mapper.weekend.WeekendSqls;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional
 @CacheConfig(cacheNames = "users")
@@ -28,6 +30,7 @@ public class UserManagerImpl implements UserManager {
     public User addUser(User user) {
         User res = new User();
         if (!this.filterAddUser(user)) {
+            log.info("用户信息不完整");
             return res;
         }
         List<User> list = userDao.selectByExample(Example.builder(User.class)
@@ -35,17 +38,28 @@ public class UserManagerImpl implements UserManager {
 
         if (list.size() > 0) {
             if (list.get(0).getUserStatus() == 0) {
+                log.info("存在失效用户");
                 user.setUserId(list.get(0).getUserId());
                 if (userDao.updateByPrimaryKey(user) == 1) {
                     res = user;
+                } else {
+                    log.info("更新用户信息失败");
                 }
+            } else {
+                log.info("用户已存在");
             }
         } else if (userDao.insertSelective(user) == 1) {
+            log.info("不存在失效用户");
             list = userDao.selectByExample(Example.builder(User.class)
                     .where(this.selectWithConditions(user)).build());
             if (list.size() == 1) {
                 res = list.get(0);
+            } else {
+                log.info("存在重复用户");
             }
+        } else {
+            log.info("不存在失效用户");
+            log.info("添加用户失败");
         }
         // CachePut
         if (res.getUserId() != null) {
@@ -73,6 +87,7 @@ public class UserManagerImpl implements UserManager {
     public User updateUser(User user) {
         User res = new User();
         if (this.filterUpdateUser(user)) {
+            log.info("非法用户信息");
             return res;
         }
         if (userDao.updateByExampleSelective(user, Example.builder(User.class)
@@ -83,7 +98,11 @@ public class UserManagerImpl implements UserManager {
                 res = list.get(0);
                 // CachePut
                 redisService.updateObject("userId::" + res.getUserId(), res);
+            } else {
+                log.info("存在重复用户信息");
             }
+        } else {
+            log.info("用户更新失败");
         }
         return res;
     }
@@ -95,6 +114,7 @@ public class UserManagerImpl implements UserManager {
                 + "userName::" + user.getUserName();
         List<User> list = redisService.selectObjects(key);
         if (list.size() < 1) {
+            log.info("缓存不存在");
             list = userDao.selectByExample(Example.builder(User.class)
                     .where(this.selectWithConditions(user)).build());
             List<String> keys = new ArrayList<>();
@@ -132,7 +152,6 @@ public class UserManagerImpl implements UserManager {
         return conditions;
     }
 
-
     private WeekendSqls<User> selectWithConditions(User user) {
         WeekendSqls<User> conditions = this.selectWithCoreConditions(user, true);
         if (user.getUserPwd() != null && user.getUserPwd().length() > 0) {
@@ -152,9 +171,11 @@ public class UserManagerImpl implements UserManager {
 
     private boolean filterUpdateUser(User user) {
         if (user.getUserId() == null) {
+            log.info("用户id为空");
             return true;
         }
         if (user.getUserName() != null) {
+            log.info("用户名不为空");
             return true;
         }
         return user.getUserType() == null && user.getUserEmail() == null
@@ -164,10 +185,12 @@ public class UserManagerImpl implements UserManager {
 
     private boolean filterAddUser(User user) {
         if (user.getUserId() != null) {
+            log.info("用户id不为空");
             return false;
         }
         return user.getUserName() != null && user.getUserType() != null
                 && user.getUserEmail() != null && user.getUserPwd() != null
                 && user.getUserStatus() != null && user.getAdminId() != null;
     }
+
 }

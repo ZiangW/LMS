@@ -11,7 +11,6 @@ import com.example.lms.service.BookManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -22,10 +21,6 @@ public class AdminController {
     private AdminManager adminManager;
     @Autowired
     private AdminService adminService;
-    @Autowired
-    private BookManager bookManager;
-    @Autowired
-    private BookCategoryManager bookCategoryManager;
 
     @PostMapping(value = "/login")
     @ResponseBody
@@ -84,55 +79,54 @@ public class AdminController {
     @PostMapping(value = "/getUsers")
     @ResponseBody
     public List<User> getUsers(@RequestBody User user) {
-        return adminService.getUsersByConditions(user);
+        return adminService.getUsers(user);
     }
-
 
     @PostMapping(value = "/addBooks")
     @ResponseBody
     public Book addBook(@RequestBody Book book) {
-        return bookManager.addBooks(book);
+        return adminService.addBooks(book);
     }
 
     @PostMapping(value = "/deleteBooks")
     @ResponseBody
     public List<Integer> deleteBook(@RequestBody List<Book> list) {
-        return bookManager.deleteBooks(list);
+        return adminService.deleteBooks(list);
     }
 
     @PostMapping(value = "/updateBooks")
     @ResponseBody
     public Book updateBook(@RequestBody Book book) {
-        return bookManager.updateBooks(book);
+        return adminService.updateBooks(book);
     }
 
     @PostMapping(value = "/getBooks")
     @ResponseBody
     public List<Book> getBooks(@RequestBody Book book) {
-        return bookManager.getBooks(book);
+        return adminService.getBooks(book);
     }
 
     @PostMapping(value = "/getBookCategory")
     @ResponseBody
     public List<BookCategory> getBookCategory(@RequestBody BookCategory bookCategory) {
-        return bookCategoryManager.getBookCategory(bookCategory);
+        return adminService.getBookCategory(bookCategory);
     }
 
     @PostMapping(value = "/addBookCategory")
     @ResponseBody
     public BookCategory addBookCategory(@RequestBody BookCategory bookCategory) {
-        return bookCategoryManager.addBookCategory(bookCategory);
+        return adminService.addBookCategory(bookCategory);
     }
 
     @PostMapping(value = "/deleteBookCategory")
     @ResponseBody
     public List<Integer> deleteBookCategory(@RequestBody List<BookCategory> list) {
-        return bookCategoryManager.deleteBookCategory(list);
+        return adminService.deleteBookCategory(list);
     }
 
     @PostMapping(value = "/updateBookCategory")
     @ResponseBody
     public BookCategory updateBookCategory(@RequestBody BookCategory bookCategory) {
-        return bookCategoryManager.updateBookCategory(bookCategory);
+        return adminService.updateBookCategory(bookCategory);
     }
 }

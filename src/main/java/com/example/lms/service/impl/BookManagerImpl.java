@@ -31,23 +31,33 @@ public class BookManagerImpl implements BookManager {
         Book res = new Book();
         // 过滤非法book
         if (!this.filterAddBook(book)) {
+            log.info("图书信息不完整");
             return res;
         }
         List<Book> list = bookDao.selectByExample(Example.builder(Book.class)
                 .where(this.selectWithCoreConditions(book, false)).build());
         if (list.size() > 0) {
             if (list.get(0).getBookStatus() == 0) {
+                log.info("存在失效图书");
                 book.setBookId(list.get(0).getBookId());
-                if (bookDao.updateByPrimaryKey(book)== 1) {
+                if (bookDao.updateByPrimaryKey(book) == 1) {
                     res = book;
+                } else {
+                    log.info("更新图书信息失败");
                 }
+            } else {
+                log.info("图书已存在");
             }
         } else if (bookDao.insertSelective(book) == 1) {
+            log.info("不存在失效图书");
             list = bookDao.selectByExample(Example.builder(Book.class)
                     .where(selectWithConditions(book)).build());
             if (list.size() == 1) {
                 res = list.get(0);
             }
+        } else {
+            log.info("不存在失效图书");
+            log.info("添加图书失败");
         }
         // CachePut
         if (res.getBookId() != null) {
@@ -86,6 +96,7 @@ public class BookManagerImpl implements BookManager {
         Book res = new Book();
         // 过滤非法book
         if (this.filterUpdateBook(book)) {
+            log.info("非法图书信息");
             return res;
         }
         if (bookDao.updateByExampleSelective(book, Example.builder(Book.class)
@@ -96,7 +107,11 @@ public class BookManagerImpl implements BookManager {
                 res = list.get(0);
                 // CachePut
                 redisService.updateObject("bookId::" + res.getBookId(), res);
+            } else {
+                log.info("存在重复图书信息");
             }
+        } else {
+            log.info("图书更新失败");
         }
         return res;
     }
@@ -108,6 +123,7 @@ public class BookManagerImpl implements BookManager {
                 + "bookName::" + book.getBookName();
         List<Book> list = redisService.selectObjects(key);
         if (list.size() < 1) {
+            log.info("缓存不存在");
             list = bookDao.selectByExample(Example.builder(Book.class)
                     .where(this.selectWithConditions(book)).build());
             List<String> keys = new ArrayList<>();
@@ -122,26 +138,6 @@ public class BookManagerImpl implements BookManager {
     @Override
     public List<Book> getAllBooks() {
         return bookDao.selectAll();
-    }
-
-    private boolean filterUpdateBook(Book book) {
-        if (book.getBookId() == null) {
-            return true;
-        }
-        if (book.getBookName() != null) {
-            return true;
-        }
-        return book.getBookCount() == null && book.getBookCategory() == null
-                && book.getBookAuthor() == null && book.getBookStatus() == null;
-    }
-
-    private boolean filterAddBook(Book book) {
-        if (book.getBookId() != null) {
-            return false;
-        }
-        return book.getBookName() != null && book.getBookCount() != null
-                && book.getBookCategory() != null && book.getBookAuthor() != null
-                && book.getBookStatus() != null;
     }
 
     private WeekendSqls<Book> updateWithConditions(Book book) {
@@ -175,4 +171,28 @@ public class BookManagerImpl implements BookManager {
         }
         return conditions;
     }
+
+    private boolean filterUpdateBook(Book book) {
+        if (book.getBookId() == null) {
+            log.info("图书id为空");
+            return true;
+        }
+        if (book.getBookName() != null) {
+            log.info("图书名不为空");
+            return true;
+        }
+        return book.getBookCount() == null && book.getBookCategory() == null
+                && book.getBookAuthor() == null && book.getBookStatus() == null;
+    }
+
+    private boolean filterAddBook(Book book) {
+        if (book.getBookId() != null) {
+            log.info("图书id不为空");
+            return false;
+        }
+        return book.getBookName() != null && book.getBookCount() != null
+                && book.getBookCategory() != null && book.getBookAuthor() != null
+                && book.getBookStatus() != null;
+    }
+
 }

@@ -10,8 +10,6 @@ public interface BookManager {
 
     List<Integer> deleteBooks(List<Book> list);
 
-    // int deleteBook(Book book);
-
     Book updateBooks(Book book);
 
     List<Book> getBooks(Book book);

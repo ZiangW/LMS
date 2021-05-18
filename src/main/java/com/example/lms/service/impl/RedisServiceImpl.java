@@ -39,6 +39,7 @@ public class RedisServiceImpl<E> implements RedisService<E> {
     public List<E> selectObjects(String key) {
         Set<String> resultSet = stringTemplate.opsForSet().members(key);
         if (resultSet == null) {
+            log.info("缓存失败（set不存在）");
             return new ArrayList<>();
         }
         List<String> keyList = new ArrayList<>(resultSet);
@@ -56,19 +57,23 @@ public class RedisServiceImpl<E> implements RedisService<E> {
     @Override
     public int updateObject(String key, E e) {
         if (redisTemplate.opsForValue().get(key) != null) {
-            redisTemplate.opsForValue().set(key, e);
-            return 1;
+            log.info("key存在");
         }
-        return 0;
+        redisTemplate.opsForValue().set(key, e);
+        return 1;
     }
 
     @Override
     public int deleteObject(String key) {
         // 删除本条记录
         if (redisTemplate.opsForValue().get(key) != null) {
-            redisTemplate.delete(key);
+            if(Boolean.TRUE.equals(redisTemplate.delete(key))) {
+                log.info("缓存删除失败");
+                return 0;
+            }
             return 1;
         }
+        log.info("缓存删除失败（key不存在）");
         return 0;
     }
 
@@ -79,8 +84,10 @@ public class RedisServiceImpl<E> implements RedisService<E> {
         Set<String> keys = stringTemplate.keys(pattern);
         if (keys != null) {
             stringTemplate.delete(keys);
+            return 1;
         }
-        return 1;
+        log.info("相关缓存删除失败（key不存在）");
+        return 0;
     }
 
 }

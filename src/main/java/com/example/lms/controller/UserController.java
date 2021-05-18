@@ -2,7 +2,6 @@ package com.example.lms.controller;
 
 
 import com.example.lms.model.*;
-import com.example.lms.service.UserBookService;
 import com.example.lms.service.UserManager;
 import com.example.lms.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,8 +17,6 @@ public class UserController {
     private UserManager userManager;
     @Autowired
     private UserService userService;
-    @Autowired
-    private UserBookService userBookService;
 
     @PostMapping(value = "/addUsers")
     @ResponseBody
@@ -72,13 +69,13 @@ public class UserController {
     @PostMapping(value = "/borrowBook")
     @ResponseBody
     public int borrowBook(@RequestBody BorrowedBook borrowedBook) {
-        return userBookService.borrowBook(borrowedBook);
+        return userService.borrowBook(borrowedBook);
     }
 
     @PostMapping(value = "/returnBook")
     @ResponseBody
     public int returnBook(@RequestBody ReturnedBook returnedBook) {
-        return userBookService.returnBook(returnedBook);
+        return userService.returnBook(returnedBook);
     }
 
 }

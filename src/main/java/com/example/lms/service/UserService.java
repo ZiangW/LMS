@@ -1,5 +1,7 @@
 package com.example.lms.service;
 
+import com.example.lms.model.BorrowedBook;
+import com.example.lms.model.ReturnedBook;
 import com.example.lms.model.User;
 
 public interface UserService {
@@ -9,5 +11,9 @@ public interface UserService {
     User register(User user);
 
     User updateInfo(User user);
+
+    int borrowBook(BorrowedBook borrowedBook);
+
+    int returnBook(ReturnedBook returnedBook);
 
 }

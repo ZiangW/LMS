@@ -4,6 +4,7 @@ import com.example.lms.dao.AdminDao;
 import com.example.lms.model.Admin;
 import com.example.lms.service.AdminManager;
 import com.example.lms.service.RedisService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import tk.mybatis.mapper.weekend.WeekendSqls;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional
 @CacheConfig(cacheNames = "admins")
@@ -27,23 +29,35 @@ public class AdminManagerImpl implements AdminManager {
     public Admin addAdmin(Admin admin) {
         Admin res = new Admin();
         if (!this.filterAddAdmin(admin)) {
+            log.info("管理员信息不完整");
             return res;
         }
         List<Admin> list = adminDao.selectByExample(Example.builder(Admin.class)
                 .where(this.selectWithCoreConditions(admin, false)).build());
         if (list.size() > 0) {
             if (list.get(0).getAdminStatus() == 0) {
+                log.info("存在失效管理员");
                 admin.setAdminId(list.get(0).getAdminId());
                 if (adminDao.updateByPrimaryKey(admin) == 1) {
                     res = admin;
+                } else {
+                    log.info("更新用户信息失败");
                 }
+            } else {
+                log.info("管理员已存在");
             }
         } else if (adminDao.insertSelective(admin) == 1) {
+            log.info("不存在失效管理员");
             list = adminDao.selectByExample(Example.builder(Admin.class)
                     .where(this.selectWithConditions(admin)).build());
             if (list.size() == 1) {
                 res = list.get(0);
+            } else {
+                log.info("存在重复管理员");
             }
+        } else {
+            log.info("不存在失效管理员");
+            log.info("添加管理员失败");
         }
         // CachePut
         if (res.getAdminId() != null) {
@@ -67,6 +81,7 @@ public class AdminManagerImpl implements AdminManager {
     public Admin updateAdmin(Admin admin) {
         Admin res = new Admin();
         if (this.filterUpdateAdmin(admin)) {
+            log.info("非法管理员信息");
             return res;
         }
         if (adminDao.updateByExampleSelective(admin, Example.builder(Admin.class)
@@ -77,7 +92,11 @@ public class AdminManagerImpl implements AdminManager {
                 res = list.get(0);
                 // CachePut
                 redisService.updateObject("adminId::" + res.getAdminId(), res);
+            } else {
+                log.info("存在重复管理员信息");
             }
+        } else {
+            log.info("管理员更新失败");
         }
         return res;
     }
@@ -89,6 +108,7 @@ public class AdminManagerImpl implements AdminManager {
                 + "adminName::" + admin.getAdminName();
         List<Admin> list = redisService.selectObjects(key);
         if (list.size() < 1) {
+            log.info("缓存不存在");
             list = adminDao.selectByExample(Example.builder(Admin.class)
             .where(this.selectWithConditions(admin)).build());
             List<String> keys = new ArrayList<>();
@@ -139,9 +159,11 @@ public class AdminManagerImpl implements AdminManager {
 
     private boolean filterUpdateAdmin(Admin admin) {
         if (admin.getAdminId() == null) {
+            log.info("管理员id为空");
             return true;
         }
         if (admin.getAdminName() != null) {
+            log.info("管理员名不为空");
             return true;
         }
         return admin.getAdminPwd() == null && admin.getAdminEmail() == null
@@ -150,9 +172,11 @@ public class AdminManagerImpl implements AdminManager {
 
     private boolean filterAddAdmin(Admin admin) {
         if (admin.getAdminId() != null) {
+            log.info("管理员id不为空");
             return false;
         }
         return admin.getAdminName() != null && admin.getAdminPwd() != null
                 && admin.getAdminEmail() != null && admin.getAdminStatus() != null;
     }
+
 }
