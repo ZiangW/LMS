@@ -2,11 +2,17 @@ package com.example.lms.controller;
 
 import com.example.lms.model.BookCategory;
 import com.example.lms.service.BookCategoryManager;
+import com.example.lms.vo.ResponseVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * @author 王子昂
+ * @date 5/21/21
+ * @description BookCategory controller
+ */
 @RestController
 @RequestMapping(value = "/categories")
 public class BookCategoryController {
@@ -16,32 +22,32 @@ public class BookCategoryController {
 
     @PostMapping(value = "/getBookCategory")
     @ResponseBody
-    public List<BookCategory> getBookCategory(@RequestBody BookCategory bookCategory) {
-        return bookCategoryManager.getBookCategory(bookCategory);
+    public ResponseVo<List<BookCategory>> getBookCategory(@RequestBody BookCategory bookCategory) throws Exception {
+        return ResponseVo.getSuccessResp(bookCategoryManager.getBookCategory(bookCategory));
     }
 
     @PostMapping(value = "/addBookCategory")
     @ResponseBody
-    public BookCategory addBookCategory(@RequestBody BookCategory bookCategory) {
-        return bookCategoryManager.addBookCategory(bookCategory);
+    public ResponseVo<BookCategory> addBookCategory(@RequestBody BookCategory bookCategory) throws Exception {
+        return ResponseVo.getSuccessResp(bookCategoryManager.addBookCategory(bookCategory));
     }
 
     @PostMapping(value = "/deleteBookCategory")
     @ResponseBody
-    public List<Integer> deleteBookCategory(@RequestBody List<BookCategory> list) {
-        return bookCategoryManager.deleteBookCategory(list);
+    public ResponseVo<List<Integer>> deleteBookCategory(@RequestBody List<BookCategory> list) throws Exception {
+        return ResponseVo.getSuccessResp(bookCategoryManager.deleteBookCategory(list));
     }
 
     @PostMapping(value = "/updateBookCategory")
     @ResponseBody
-    public BookCategory updateBookCategory(@RequestBody BookCategory bookCategory) {
-        return bookCategoryManager.updateBookCategory(bookCategory);
+    public ResponseVo<BookCategory> updateBookCategory(@RequestBody BookCategory bookCategory) throws Exception {
+        return ResponseVo.getSuccessResp(bookCategoryManager.updateBookCategory(bookCategory));
     }
 
     @GetMapping(value = "/getALlBookCategories")
     @ResponseBody
-    public List<BookCategory> getAllBookCategories() {
-        return bookCategoryManager.getAllBookCategories();
+    public ResponseVo<List<BookCategory>> getAllBookCategories() throws Exception {
+        return ResponseVo.getSuccessResp(bookCategoryManager.getAllBookCategories());
     }
 
 }

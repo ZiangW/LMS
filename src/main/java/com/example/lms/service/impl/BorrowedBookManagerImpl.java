@@ -1,10 +1,11 @@
 package com.example.lms.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.example.lms.dao.BorrowedBookDao;
-import com.example.lms.model.Book;
+import com.example.lms.exception.BusinessException;
 import com.example.lms.model.BorrowedBook;
-import com.example.lms.model.ReturnedBook;
 import com.example.lms.service.BorrowedBookManager;
+import com.example.lms.service.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
@@ -16,91 +17,86 @@ import tk.mybatis.mapper.weekend.WeekendSqls;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.example.lms.constants.GlobalConstants.LEND_KEY_PREFIX;
+import static com.example.lms.enums.RespEnum.PARAM_ERROR;
+
+/**
+ * @author 王子昂
+ * @date 5/21/21
+ * @description RBorrowedBookManager实现
+ */
 @Slf4j
 @Service
-@Transactional
 @CacheConfig(cacheNames = "borrowedBooks")
 public class BorrowedBookManagerImpl implements BorrowedBookManager {
 
     @Autowired
     private BorrowedBookDao borrowedBookDao;
     @Autowired
-    private RedisServiceImpl<BorrowedBook> redisService;
+    private RedisService<BorrowedBook> redisService;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int addRecord(BorrowedBook borrowedBook) {
-        BorrowedBook res = new BorrowedBook();
-
-        // 过滤非法记录
-        if (!this.filterAddRecord(borrowedBook)) {
-            log.info("记录不完整");
-            return 0;
+        if (this.filterAddRecord(borrowedBook)) {
+            throw new BusinessException("添加记录的信息不完整", PARAM_ERROR.getErrno());
         }
+        BorrowedBook res = new BorrowedBook();
         List<BorrowedBook> list = borrowedBookDao.selectByExample(Example.builder(BorrowedBook.class)
                 .where(selectWithConditions(borrowedBook, false)).build());
-        if (list.size() > 0) {
+        if (!list.isEmpty()) {
             if (list.get(0).getLendStatus() == 0) {
                 log.info("存在失效记录");
                 if (borrowedBookDao.updateByPrimaryKey(borrowedBook) == 1) {
                     res = borrowedBook;
                 } else {
-                    log.info("更新记录失败");
+                    log.error("（添加）更新记录失败，参数为{}", JSON.toJSON(borrowedBook));
                 }
             } else {
-                log.info("记录已存在");
+                log.error("记录已存在，不可重复添加，参数为{}", JSON.toJSON(borrowedBook));
             }
         } else if (borrowedBookDao.insertSelective(borrowedBook) == 1) {
             log.info("不存在失效记录");
-            list = borrowedBookDao.selectByExample(Example.builder(BorrowedBook.class)
-                    .where(selectWithConditions(borrowedBook, true)).build());
-            if (list.size() == 1) {
-                res = list.get(0);
-            }
+            res = borrowedBook;
         } else {
             log.info("不存在失效记录");
-            log.info("添加记录失败");
+            log.error("（添加）插入记录信息失败，参数为{}", JSON.toJSON(borrowedBook));
         }
         // CachePut
         if (res.getLendId() != null) {
-            redisService.addObject("borrowedBook::set::*", "lendId::" + res.getLendId(), res);
+            redisService.addObject("borrowedBook::set::*", LEND_KEY_PREFIX + res.getLendId(), res);
             return 1;
         }
         return 0;
     }
 
     @Override
-    public List<Integer> deleteRecords(List<BorrowedBook> list) {
-        List<Integer> res = new ArrayList<>();
-        for (BorrowedBook borrowedBook : list) {
-            borrowedBook.setLendStatus(0);
-            int flag = borrowedBookDao.updateByPrimaryKeySelective(borrowedBook);
-            res.add(flag);
-            if (flag == 1) {
-                redisService.deleteObject("lendId::" + borrowedBook.getLendId());
-            }
+    @Transactional(rollbackFor = Exception.class)
+    public int deleteRecord(BorrowedBook borrowedBook) {
+        if (this.filterDeleteRecord(borrowedBook)) {
+            throw new BusinessException("删除记录的信息不合法", PARAM_ERROR.getErrno());
         }
-        return res;
+        borrowedBook.setLendStatus(0);
+        int flag = borrowedBookDao.updateByPrimaryKeySelective(borrowedBook);
+        if (flag == 1) {
+            redisService.deleteObject(LEND_KEY_PREFIX + borrowedBook.getLendId());
+        } else {
+            log.error("删除记录失败，参数为{}", JSON.toJSON(borrowedBook));
+        }
+        return flag;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateRecord(BorrowedBook borrowedBook) {
         if (this.filterUpdateRecord(borrowedBook)) {
-            log.info("非法记录");
-            return 0;
+            throw new BusinessException("更新记录的信息不合法", PARAM_ERROR.getErrno());
         }
         if (borrowedBookDao.updateByPrimaryKeySelective(borrowedBook) == 1) {
-            List<BorrowedBook> list = borrowedBookDao.selectByExample(Example.builder(BorrowedBook.class)
-                    .where(this.selectWithConditions(borrowedBook, true)).build());
-            if (list.size() == 1) {
-                BorrowedBook res = list.get(0);
-                // CachePut
-                redisService.updateObject("lendId::" + res.getLendId(), res);
-                return 1;
-            } else {
-                log.info("存在重复记录");
-            }
+            redisService.updateObject(LEND_KEY_PREFIX + borrowedBook.getLendId(), borrowedBook);
+            return 1;
         } else {
-            log.info("记录更新失败");
+            log.error("更新借阅记录失败，参数为{}", JSON.toJSON(borrowedBook));
         }
         return 0;
     }
@@ -108,16 +104,16 @@ public class BorrowedBookManagerImpl implements BorrowedBookManager {
     @Override
     public List<BorrowedBook> getRecords(BorrowedBook borrowedBook) {
         // Cacheable
-        String key = "borrowedBook::set::" + "lendId::" + borrowedBook.getLendId()
+        String key = "borrowedBook::set::" + LEND_KEY_PREFIX + borrowedBook.getLendId()
                 + "lendUserId::" + borrowedBook.getLendUserId() + "lendBookId::" + borrowedBook.getLendBookId();
         List<BorrowedBook> list = redisService.selectObjects(key);
-        if (list.size() < 1) {
+        if (list.isEmpty()) {
             log.info("缓存不存在");
             list = borrowedBookDao.selectByExample(Example.builder(BorrowedBook.class)
                     .where(this.selectWithConditions(borrowedBook, true)).build());
             List<String> keys = new ArrayList<>();
             for (BorrowedBook b : list) {
-                keys.add("lendId::" + b.getLendId());
+                keys.add(LEND_KEY_PREFIX + b.getLendId());
             }
             redisService.addObjects(key, keys, list);
         }
@@ -130,42 +126,38 @@ public class BorrowedBookManagerImpl implements BorrowedBookManager {
     }
 
     private WeekendSqls<BorrowedBook> selectWithConditions(BorrowedBook borrowedBook, boolean selectOrUpdate) {
-        WeekendSqls<BorrowedBook> sqls = WeekendSqls.custom();
-        if (borrowedBook.getLendId() != null && borrowedBook.getLendId() > 0) {
-            sqls.andEqualTo(BorrowedBook::getLendId, borrowedBook.getLendId());
+        WeekendSqls<BorrowedBook> conditions = WeekendSqls.custom();
+        if (borrowedBook.getLendId() != null) {
+            conditions.andEqualTo(BorrowedBook::getLendId, borrowedBook.getLendId());
         }
-        if (borrowedBook.getLendUserId() != null && borrowedBook.getLendUserId() > 0) {
-            sqls.andEqualTo(BorrowedBook::getLendUserId, borrowedBook.getLendUserId());
+        if (borrowedBook.getLendUserId() != null) {
+            conditions.andEqualTo(BorrowedBook::getLendUserId, borrowedBook.getLendUserId());
         }
-        if (borrowedBook.getLendBookId() != null && borrowedBook.getLendBookId() > 0) {
-            sqls.andEqualTo(BorrowedBook::getLendBookId, borrowedBook.getLendBookId());
-        }
-        if (borrowedBook.getLendDate() != null) {
-            sqls.andEqualTo(BorrowedBook::getLendDate, borrowedBook.getLendDate());
+        if (borrowedBook.getLendBookId() != null) {
+            conditions.andEqualTo(BorrowedBook::getLendBookId, borrowedBook.getLendBookId());
         }
         if (selectOrUpdate) {
-            sqls.andEqualTo(BorrowedBook::getLendStatus, 1);
+            conditions.andEqualTo(BorrowedBook::getLendStatus, 1);
         }
-        return sqls;
+        return conditions;
     }
 
     private boolean filterUpdateRecord(BorrowedBook borrowedBook) {
-        if (borrowedBook.getLendId() == null) {
-            log.info("记录id为空");
-            return true;
-        }
-        return borrowedBook.getLendBookId() == null && borrowedBook.getLendUserId() == null
-                && borrowedBook.getLendDate() == null && borrowedBook.getLendStatus() == null;
+        return borrowedBook.getLendId() == null || (borrowedBook.getLendBookId() == null
+                && borrowedBook.getLendUserId() == null && borrowedBook.getLendDate() == null
+                && borrowedBook.getLendStatus() == null);
     }
 
     private boolean filterAddRecord(BorrowedBook borrowedBook) {
-        if (borrowedBook.getLendId() != null) {
-            log.info("记录id不为空");
-            return false;
-        }
-        return borrowedBook.getLendBookId() != null && borrowedBook.getLendUserId() != null
-                && borrowedBook.getLendDate() != null && borrowedBook.getLendStatus() != null;
+        return borrowedBook.getLendId() != null || borrowedBook.getLendBookId() == null
+                || borrowedBook.getLendUserId() == null || borrowedBook.getLendDate() == null
+                || borrowedBook.getLendStatus() != null;
     }
 
+    private boolean filterDeleteRecord(BorrowedBook borrowedBook) {
+        return borrowedBook.getLendId() == null || borrowedBook.getLendBookId() != null
+                || borrowedBook.getLendUserId() != null || borrowedBook.getLendDate() != null
+                || borrowedBook.getLendStatus() != null;
+    }
 
 }

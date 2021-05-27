@@ -7,6 +7,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+
+/**
+ * @author 王子昂
+ * @date 5/21/21
+ * @description Redisson配置
+ */
 @Configuration
 public class RedissonConfig {
 

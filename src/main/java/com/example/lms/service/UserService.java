@@ -3,17 +3,54 @@ package com.example.lms.service;
 import com.example.lms.model.BorrowedBook;
 import com.example.lms.model.ReturnedBook;
 import com.example.lms.model.User;
+import com.example.lms.vo.OperationVo;
+import com.example.lms.vo.UserVo;
 
+/**
+ * @author 王子昂
+ * @date 5 /19/21
+ * @description 用户服务接口
+ */
 public interface UserService {
 
-    User login(User user);
+    /**
+     * Login user vo.
+     *
+     * @param user the user
+     * @return the user vo
+     */
+    UserVo login(User user);
 
-    User register(User user);
+    /**
+     * Register user vo.
+     *
+     * @param user the user
+     * @return the user vo
+     */
+    UserVo register(User user);
 
-    User updateInfo(User user);
+    /**
+     * Update info user vo.
+     *
+     * @param user the user
+     * @return the user vo
+     */
+    UserVo updateInfo(User user);
 
-    int borrowBook(BorrowedBook borrowedBook);
+    /**
+     * Borrow book operation vo.
+     *
+     * @param borrowedBook the borrowed book
+     * @return the operation vo
+     */
+    OperationVo borrowBook(BorrowedBook borrowedBook);
 
-    int returnBook(ReturnedBook returnedBook);
+    /**
+     * Return book operation vo.
+     *
+     * @param returnedBook the returned book
+     * @return the operation vo
+     */
+    OperationVo returnBook(ReturnedBook returnedBook);
 
 }

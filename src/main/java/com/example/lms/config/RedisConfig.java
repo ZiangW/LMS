@@ -24,7 +24,7 @@ import java.time.Duration;
 
 /**
  * @author wza
- * reids 相关bean的配置
+ * @description reids相关bean的配置
  */
 @Slf4j
 @Configuration
@@ -49,6 +49,7 @@ public class RedisConfig extends CachingConfigurerSupport {
         template.setKeySerializer(jackson2JsonRedisSerializer);
         template.setValueSerializer(jackson2JsonRedisSerializer);
         // Redis HashKey - HashValue 序列化使用 Jackson
+        template.setDefaultSerializer(jackson2JsonRedisSerializer);
         template.setHashKeySerializer(jackson2JsonRedisSerializer);
         template.setHashValueSerializer(jackson2JsonRedisSerializer);
         template.afterPropertiesSet();

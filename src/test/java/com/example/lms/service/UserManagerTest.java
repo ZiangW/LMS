@@ -24,12 +24,9 @@ public class UserManagerTest {
     @Test
     public void addUserWithExistedInfo() {
         User user = new User();
-//        user.setUserId(1);
-        user.setUserStatus(1);
         user.setUserType("Bronze");
         user.setUserPwd("123");
         user.setUserEmail("bba@ke.com");
-        user.setAdminId(1);
         user.setUserName("a");
 
         User res = userManager.addUser(user);
@@ -46,12 +43,9 @@ public class UserManagerTest {
     @Test
     public void addUserWithNewInfo() {
         User user = new User();
-//        user.setUserId(1);
-        user.setUserStatus(1);
         user.setUserType("Bronze");
         user.setUserPwd("123");
         user.setUserEmail("ddd@ke.com");
-        user.setAdminId(1);
         user.setUserName("addd");
 
         User res = userManager.addUser(user);

@@ -2,11 +2,17 @@ package com.example.lms.controller;
 
 import com.example.lms.model.BorrowedBook;
 import com.example.lms.service.BorrowedBookManager;
+import com.example.lms.vo.ResponseVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * @author 王子昂
+ * @date 5/21/21
+ * @description Borrow controller
+ */
 @RestController
 @RequestMapping(value = "/Borrow")
 public class BorrowController {
@@ -15,40 +21,31 @@ public class BorrowController {
 
     @PostMapping(value = "/addRecord")
     @ResponseBody
-    public int addRecord(@RequestBody BorrowedBook borrowedBook) {
-
-        return borrowedBookManager.addRecord(borrowedBook);
-
+    public ResponseVo<Integer> addRecord(@RequestBody BorrowedBook borrowedBook) throws Exception {
+        return ResponseVo.getSuccessResp(borrowedBookManager.addRecord(borrowedBook));
     }
 
     @PostMapping(value = "/deleteRecords")
     @ResponseBody
-    public List<Integer> deleteRecords(@RequestBody List<BorrowedBook> list) {
-
-        return borrowedBookManager.deleteRecords(list);
-
+    public ResponseVo<Integer> deleteRecords(@RequestBody BorrowedBook borrowedBook) {
+        return ResponseVo.getSuccessResp(borrowedBookManager.deleteRecord(borrowedBook));
     }
 
     @PostMapping(value = "/updateRecord")
     @ResponseBody
-    public int updateRecord(@RequestBody BorrowedBook borrowedBook) {
-
-        return borrowedBookManager.updateRecord(borrowedBook);
-
+    public ResponseVo<Integer> updateRecord(@RequestBody BorrowedBook borrowedBook) throws Exception {
+        return ResponseVo.getSuccessResp(borrowedBookManager.updateRecord(borrowedBook));
     }
 
     @PostMapping(value = "/getRecords")
     @ResponseBody
-    public List<BorrowedBook> getRecords(@RequestBody BorrowedBook borrowedBook) {
-
-        return borrowedBookManager.getRecords(borrowedBook);
+    public ResponseVo<List<BorrowedBook>> getRecords(@RequestBody BorrowedBook borrowedBook) throws Exception {
+        return ResponseVo.getSuccessResp(borrowedBookManager.getRecords(borrowedBook));
     }
 
     @GetMapping(value = "/getAllRecords")
     @ResponseBody
-    public List<BorrowedBook> getAllRecords() {
-
-        return borrowedBookManager.getAllRecords();
-
+    public ResponseVo<List<BorrowedBook>> getAllRecords() {
+        return ResponseVo.getSuccessResp(borrowedBookManager.getAllRecords());
     }
 }

@@ -2,15 +2,17 @@ package com.example.lms.controller;
 
 import com.example.lms.model.Book;
 import com.example.lms.service.BookManager;
+import com.example.lms.vo.ResponseVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheConfig;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * @author 王子昂
+ * @date 5/21/21
+ * @description Book controller
+ */
 @RestController
 @RequestMapping(value = "/books")
 public class BookController {
@@ -20,34 +22,32 @@ public class BookController {
 
     @PostMapping(value = "/addBooks")
     @ResponseBody
-    public Book addBooks(@RequestBody Book book) {
-        return bookManager.addBooks(book);
+    public ResponseVo<Book> addBooks(@RequestBody Book book) throws Exception {
+        return ResponseVo.getSuccessResp(bookManager.addBooks(book));
     }
 
     @PostMapping(value = "/deleteBooks")
     @ResponseBody
-    public List<Integer> deleteBooks(@RequestBody List<Book> list) {
-        return bookManager.deleteBooks(list);
+    public ResponseVo<List<Integer>> deleteBooks(@RequestBody List<Book> list) throws Exception {
+        return ResponseVo.getSuccessResp(bookManager.deleteBooks(list));
     }
 
     @PostMapping(value = "/updateBooks")
     @ResponseBody
-    public Book updateBooks(@RequestBody Book book) {
-        return bookManager.updateBooks(book);
+    public ResponseVo<Book> updateBooks(@RequestBody Book book) throws Exception {
+        return ResponseVo.getSuccessResp(bookManager.updateBooks(book));
     }
 
     @PostMapping(value = "/getBooks")
     @ResponseBody
-    public List<Book> getBooks(@RequestBody Book book) {
-        return bookManager.getBooks(book);
+    public ResponseVo<List<Book>> getBooks(@RequestBody Book book) throws Exception {
+        return ResponseVo.getSuccessResp(bookManager.getBooks(book));
     }
 
     @GetMapping(value = "/getAllBooks")
     @ResponseBody
-    public List<Book> getAllBooks() {
-
-        return bookManager.getAllBooks();
-
+    public ResponseVo<List<Book>> getAllBooks() {
+        return ResponseVo.getSuccessResp(bookManager.getAllBooks());
     }
 
 }

@@ -6,6 +6,11 @@ import org.apache.ibatis.annotations.Update;
 import tk.mybatis.mapper.common.Mapper;
 import tk.mybatis.mapper.common.MySqlMapper;
 
+/**
+ * @author 王子昂
+ * @date 5/21/21
+ * @description Book Dao
+ */
 public interface BookDao extends Mapper<Book>, MySqlMapper<Book> {
 
     @Update("UPDATE `book` SET `book_count` = `book_count` - #{borrowCount} " +

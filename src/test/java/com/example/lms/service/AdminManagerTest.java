@@ -22,10 +22,9 @@ public class AdminManagerTest {
     @Test
     public void addAdminsWithExistedInfo() {
         Admin admin = new Admin();
-        admin.setAdminStatus(1);
-        admin.setAdminPwd("1234");
-        admin.setAdminEmail("wza@ke.com");
         admin.setAdminName("wza");
+        admin.setAdminPwd("12345678");
+        admin.setAdminEmail("wza@ke.com");
 
         Admin res = adminManager.addAdmin(admin);
 
@@ -39,10 +38,9 @@ public class AdminManagerTest {
     @Test
     public void addAdminsWithNewInfo() {
         Admin admin = new Admin();
-        admin.setAdminStatus(1);
-        admin.setAdminPwd("123");
-        admin.setAdminEmail("aaa@ke.com");
         admin.setAdminName("asdf");
+        admin.setAdminPwd("12345678");
+        admin.setAdminEmail("wasdf@ke.com");
 
         Admin res = adminManager.addAdmin(admin);
 
